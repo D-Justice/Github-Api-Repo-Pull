@@ -23,9 +23,8 @@ def userRepos():
     global pagenumber
     global totalcount
     repo = requests.get("https://api.github.com/users/{}/repos?page={}".format(user, pagenumber))
-    
-    rcount = 0
-    count = 0
+    #Makes sure to only append first unique name to UserNames list
+    uniqueUser = 0
     pagenumber += 1
     print("\nDisplaying page {} of {}'s repositories".format(pagenumber, user))
     try:
@@ -35,12 +34,11 @@ def userRepos():
             global usersName
             usersName = item['owner']['login']
            
-            if count >= 1:pass
+            if uniqueUser >= 1:pass
             else:
-                count += 1
+                uniqueUser += 1
                 print('\nUsername:', usersName,"\n\n")
             try:
-                rcount += 1
                 totalcount += 1
                 print(('Repo #{}:').format(totalcount),item['name'],'has------',item['watchers'],'watchers')
 
@@ -48,6 +46,7 @@ def userRepos():
                 print(i)
     except:
         print('Failed')
+#Grabs first page of users followers and prints it out, grabs first unique name to run through on next iteration
 def userFollowers():
 
     global user
@@ -60,7 +59,7 @@ def userFollowers():
         except:
             continue
 
-
+        #Adds unique username to usernames list
         if users['login'] not in usernames:
             if newusercount == 0:
                 newusercount += 1
@@ -68,6 +67,7 @@ def userFollowers():
                 user = users['login']
         else:
             continue
+#Pauses program for 1 hour when rate limit is nearly used up
 def waitPeriod():
     print("Taking a break")
     ratecount = 0
@@ -82,9 +82,11 @@ def waitPeriod():
     time.sleep(905)
     print("Done!")
     endnowcount += 1
+    print(endnowcount)
     if endnowcount == 5:
         print("List of all unique usernames: \n", usernames)
         endnowcount = 0
+#Looks at how many repository pages there are to make sure rate limit is sufficient
 def lookForward():
     totalRepo = requests.get("https://api.github.com/users/{}".format(user))
     totalRepoNumber = totalRepo.json()['public_repos']
@@ -99,6 +101,7 @@ def lookForward():
         pass
 user = input("Input GitHub User-name: ")
 howmany = int(input("Enter how many additional users info you'd like to see:"))
+#Prints json data in a pretty way
 def jprint(obj):
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
@@ -106,11 +109,14 @@ rate = requests.get("https://api.github.com/rate_limit")
 rateLeft = rate.json()['rate']['remaining']
 
 repo = requests.get("https://api.github.com/users/{}/repos?page={}".format(user, pagenumber))
+#Keeps count of the rates used up
 ratecount = 0
 usernames = list()
-testcount = 0
+#prints out list of unique usernames every 5 pauses
 endnowcount = 0
+#Times howmany by two because repositories and followers are two different itterations
 howmany = (howmany * 2) + 1
+#Records how many total repositories the user has
 def totalRepoUser():
     totalRepo = requests.get("https://api.github.com/users/{}".format(user))
     global totalRepoNumber
@@ -121,6 +127,7 @@ def totalRepoUser():
     numOfFollowers = totalRepo.json()['followers']
 
     print(totalRepoNumber)
+#Runs through each unique users repositories and followers and records number of repositories and followers into a DB 
 for i in range(howmany):
     lookForward()
     totalRepoUser()
@@ -136,7 +143,7 @@ for i in range(howmany):
         ratecount += 1
         totalcount = 0
         id += 1
-        print("RateCount: ", ratecount, "\nRateLeft: ", rateLeft, "\nTestCount: ", testcount)
+        print("RateCount: ", ratecount, "\nRateLeft: ", rateLeft)
         cur.execute('''INSERT OR REPLACE INTO GitHubData(ID, User, Repositories, Followers)
                     VALUES (?, ?, ?, ?)''', (id, usersName, totalRepoNumber, numOfFollowers))
         conn.commit()
@@ -144,14 +151,7 @@ for i in range(howmany):
         while totalcount < totalRepoNumber:
             userRepos()
             ratecount += 1
-            print("Printing: ",totalcount, "out of: ", totalRepoNumber,"\nRateCount: ", ratecount,"\nRateLeft: ", rateLeft, "\nTestCount: ", testcount)     
-
-#prints all of the user followers names, adds the first unique one it comes across to 'usernames'
-#and then navigates to their page to repeat the proccess'
+            print("Printing: ",totalcount, "out of: ", totalRepoNumber,"\nRateCount: ", ratecount,"\nRateLeft: ", rateLeft)     
 
 
-
-
-#jprint(followers.json())
-#print(user)
 print(usernames)
