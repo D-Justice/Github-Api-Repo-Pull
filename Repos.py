@@ -18,6 +18,8 @@ pagenumber = 1
 totalcount = 0
 #Increments by one through each full iteration to provide the 'ID' column in database
 id = 0
+largestFollowers = 0
+largestFollowersUser = None
 usernames = list()
 textFile = open('list_storage.txt', 'r')
 for line in textFile:
@@ -25,6 +27,8 @@ for line in textFile:
     for single in splitUserNames:
         cleaned = single.replace("'","")
         cleaned = cleaned.replace(",","")
+        cleaned = cleaned.replace("[","")
+        cleaned = cleaned.replace("]","")
         usernames.append(cleaned)
 print(usernames)
 def userRepos():
@@ -62,7 +66,8 @@ def userRepos():
         print('Failed')
 #Grabs first page of users followers and prints it out, grabs first unique name to run through on next iteration
 def userFollowers():
-
+    global largestFollowers
+    global largestFollowersUser
     global user
     global newusercount
     print("\n{} has {} followers :\n".format(user,numOfFollowers))
@@ -75,17 +80,69 @@ def userFollowers():
 
         #Adds unique username to usernames list
         if users['login'] not in usernames:
-            if numOfFollowers <= 10:
-                continue
-            elif newusercount == 0:
-                newusercount += 1
-                usernames.append(user)
-                user = users['login']
+            print("This persons number of followers is {}".format(numOfFollowers))
+            print(type(numOfFollowers))
+            infoFollowers = users['login']
+            totalRepo = requests.get("https://api.github.com/users/{}".format(infoFollowers))
+            try:
+                if numOfFollowers >= largestFollowers:
+                    largestFollowers = numOfFollowers
+                    largestFollowersUser = users['login']
+                    try:
+                        largestUserMemory = open('large_user.txt','r')
+                    except:
+                        print("large_user.txt not found: creating")
+                        largestUserMemory = open('large_user.txt', 'w')
+                        largestUserMemory.write("NoUser 000")
+                        largestUserMemory.close()
+                        largestUserMemory = open('large_user.txt','r')
+                        
+                    for line in largestUserMemory:
+                        followerNumber = line.split()
+                        followerNumber = followerNumber[1]
+                        followerNumber = int(followerNumber)
+                        try:
+                            if followerNumber <= largestFollowers:
+                                largestUserMemory = open('large_user.txt','w')
+                                largestUserMemory.write(largestFollowersUser)
+                                largestUserMemory.write(largestFollowers)
+                            else:
+                                print("User is smaller than previous largest")
+                        except:
+                            print("None found")
+                    
+                    print("The current largest is:",largestFollowersUser, largestFollowers)
+                else:
+                    print("Not large enough")
+                
+                if numOfFollowers <= 10:
+                    print("=====NOT ENOUGH FOLLOWERS====")
+                    user = None
+                    
+                elif numOfFollowers >= 11:
+                    if newusercount == 0:
+                        newusercount += 1
+                        usernames.append(user)
+                        user = users['login']
+                        
+                    else:
+                        continue
+                else:
+                    print("not working")
+            except Exception as i:
+                print("Not working cos",i)
+        else:
+            continue
+        if user == None:
+            print("No viable users found, using {} who had {} followers".format(largestFollowersUser, largestFollowers))
         else:
             continue
 #Pauses program for 1 hour when rate limit is nearly used up
 def waitPeriod():
     global endnowcount
+    global largestFollowers
+    global largestFollowersUser
+    print("Our top contender is {} with {} followers".format(largestFollowersUser, largestFollowers))
     dateTime = open('dateTime.txt', 'r')
     lines = str(dateTime.readlines())
     time1 = lines[13:18]
@@ -111,11 +168,11 @@ def waitPeriod():
         "\nPlease wait.. Deleting SYS32~"]
         
         if firstIteration == True:
-            print("\nRate limit reached, trying again in 10 minutes")
+            print("\nRate limit reached, trying again in a few minutes")
             firstIteration = False
         else:
             print(random.choice(randoChoice))
-        time.sleep(600)
+        time.sleep(240)
         
         try:
             if rateLeft >= 40:
@@ -187,7 +244,10 @@ for i in range(howmany):
         dateTime.write("\n{}".format(str(fromNow)))
         dateTime.close()
         firstIteration = False
-    lookForward()
+    try:
+        lookForward()
+    except:
+        waitPeriod()
     totalRepoUser()
     ratecount += 1
     newusercount = 0
