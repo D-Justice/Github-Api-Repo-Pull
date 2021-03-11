@@ -21,7 +21,12 @@ id = 0
 largestFollowers = 0
 largestFollowersUser = None
 usernames = list()
-textFile = open('list_storage.txt', 'r')
+try:
+    textFile = open('list_storage.txt', 'r')
+except:
+    textFile = open('list_storage.txt', 'w')
+    textFile.close()
+    textFile = open('list_storage.txt', 'r')
 for line in textFile:
     splitUserNames = line.split()
     for single in splitUserNames:
@@ -39,10 +44,11 @@ def userRepos():
     repo = requests.get("https://api.github.com/users/{}/repos?page={}".format(user, pagenumber))
     
     #Makes sure to only append first unique name to UserNames list
+    print("\nDisplaying page {} of {}'s repositories".format(pagenumber, user))
     uniqueUser = 0
     pagenumber += 1
 
-    print("\nDisplaying page {} of {}'s repositories".format(pagenumber, user))
+    
     try:
         #Runs through each repository on a page and prints it and how many followers it has
         for item in repo.json():
@@ -80,8 +86,9 @@ def userFollowers():
 
         #Adds unique username to usernames list
         if users['login'] not in usernames:
-            print("This persons number of followers is {}".format(numOfFollowers))
+            print("This persons has {} followers".format(numOfFollowers))
             print(type(numOfFollowers))
+            
             infoFollowers = users['login']
             totalRepo = requests.get("https://api.github.com/users/{}".format(infoFollowers))
             try:
@@ -101,11 +108,14 @@ def userFollowers():
                         followerNumber = line.split()
                         followerNumber = followerNumber[1]
                         followerNumber = int(followerNumber)
+                        print('followerNumber =', followerNumber)
                         try:
                             if followerNumber <= largestFollowers:
+                                print('Follower number has been taken over!!!', largestFollowers, largestFollowersUser)
                                 largestUserMemory = open('large_user.txt','w')
-                                largestUserMemory.write(largestFollowersUser)
-                                largestUserMemory.write(largestFollowers)
+                                largestFollowersUser = (largestFollowersUser + " " + largestFollowers)
+                                largestUserMemory.write(largestFollowersUser) 
+                                largestUserMemory.close()
                             else:
                                 print("User is smaller than previous largest")
                         except:
@@ -182,8 +192,8 @@ def waitPeriod():
             else:
                 print('Continuing')
                 continue
-        except Exception as i:
-            print('Not working cos',i)
+        except:
+            continue
     print("Done!")
     endnowcount += 1
     ratecount = 0
