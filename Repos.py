@@ -8,8 +8,7 @@ from datetime import datetime, timedelta
 #Creates .sqlite tables  
 conn = sqlite3.connect('GitHubUserData.sqlite')
 cur = conn.cursor()
-cur.execute('''CREATE TABLE IF NOT EXISTS GitHubData
-            (ID INTEGER, User TEXT, Repositories INTEGER, Followers INTEGER)''')
+
 cur.execute('''CREATE TABLE IF NOT EXISTS GitHubUserInfo
             (ID INTEGER, User TEXT, Repos_Number INTEGER, Repositories TEXT, Followers TEXT)''')
 #Increments to work through all page numbers
@@ -21,12 +20,7 @@ id = 0
 largestFollowers = 0
 largestFollowersUser = None
 usernames = list()
-try:
-    textFile = open('list_storage.txt', 'r')
-except:
-    textFile = open('list_storage.txt', 'w')
-    textFile.close()
-    textFile = open('list_storage.txt', 'r')
+textFile = open('list_storage.txt', 'r')
 for line in textFile:
     splitUserNames = line.split()
     for single in splitUserNames:
@@ -44,11 +38,10 @@ def userRepos():
     repo = requests.get("https://api.github.com/users/{}/repos?page={}".format(user, pagenumber))
     
     #Makes sure to only append first unique name to UserNames list
-    print("\nDisplaying page {} of {}'s repositories".format(pagenumber, user))
     uniqueUser = 0
     pagenumber += 1
 
-    
+    print("\nDisplaying page {} of {}'s repositories".format(pagenumber, user))
     try:
         #Runs through each repository on a page and prints it and how many followers it has
         for item in repo.json():
@@ -86,9 +79,8 @@ def userFollowers():
 
         #Adds unique username to usernames list
         if users['login'] not in usernames:
-            print("This persons has {} followers".format(numOfFollowers))
+            print("This persons number of followers is {}".format(numOfFollowers))
             print(type(numOfFollowers))
-            
             infoFollowers = users['login']
             totalRepo = requests.get("https://api.github.com/users/{}".format(infoFollowers))
             try:
@@ -108,14 +100,11 @@ def userFollowers():
                         followerNumber = line.split()
                         followerNumber = followerNumber[1]
                         followerNumber = int(followerNumber)
-                        print('followerNumber =', followerNumber)
                         try:
                             if followerNumber <= largestFollowers:
-                                print('Follower number has been taken over!!!', largestFollowers, largestFollowersUser)
                                 largestUserMemory = open('large_user.txt','w')
-                                largestFollowersUser = (largestFollowersUser + " " + largestFollowers)
-                                largestUserMemory.write(largestFollowersUser) 
-                                largestUserMemory.close()
+                                largestUserMemory.write(largestFollowersUser)
+                                largestUserMemory.write(largestFollowers)
                             else:
                                 print("User is smaller than previous largest")
                         except:
@@ -182,7 +171,7 @@ def waitPeriod():
             firstIteration = False
         else:
             print(random.choice(randoChoice))
-        time.sleep(240)
+        time.sleep(180)
         
         try:
             if rateLeft >= 40:
@@ -192,8 +181,8 @@ def waitPeriod():
             else:
                 print('Continuing')
                 continue
-        except:
-            continue
+        except Exception as i:
+            print('Not working cos',i)
     print("Done!")
     endnowcount += 1
     ratecount = 0
@@ -202,6 +191,38 @@ def waitPeriod():
     fromNow = (datetime.now() + timedelta(hours= 1))
     dateTime.write("\n{}".format(str(fromNow)))
     dateTime.close()
+def hyperDataGather():
+    newusercount = 0
+    global user
+    global totalRepoNumber
+    global numOfFollowers
+    followers = requests.get("https://api.github.com/users/{}/followers".format(user))
+    totalRepo = requests.get("https://api.github.com/users/{}".format(user))
+    totalRepoNumber = totalRepo.json()['public_repos']
+    numOfFollowers = totalRepo.json()['followers']
+    for i in followers.json():
+        if i['login'] not in usernames:
+            if newusercount == 0:
+                newusercount += 1
+                usernames.append(user)
+                user = i['login']
+                usersName = user
+                followers = requests.get("https://api.github.com/users/{}/followers".format(user))
+                numOfFollowers = totalRepo.json()['followers']
+                print(numOfFollowers)
+                if numOfFollowers <= 0:
+                    print('Low followers')
+                    
+                    continue
+                
+                print("Found user: {}".format(user))
+                
+                
+            else:
+                continue
+        else:
+            continue
+            
     
 #Looks at how many repository pages there are to make sure rate limit is sufficient
 def lookForward():
@@ -219,6 +240,11 @@ def lookForward():
         print("Rate left sufficient. {} extra".format(pages))
         pass
 user = input("Input GitHub User-name: ")
+if user.lower() == "rate":
+    rate = requests.get("https://api.github.com/rate_limit")
+    rateLeft = rate.json()['rate']['remaining']
+    print(rateLeft)
+    quit()
 howmany = int(input("Enter how many additional users info you'd like to see:"))
 #Prints json data in a pretty way
 def jprint(obj):
@@ -254,29 +280,38 @@ for i in range(howmany):
         dateTime.write("\n{}".format(str(fromNow)))
         dateTime.close()
         firstIteration = False
+    #try:
+        #lookForward()
+    #except:
+        #waitPeriod()
+    #totalRepoUser()
+    #ratecount += 1
+    #newusercount = 0
+    #pagenumber = 1
+    #if totalcount == totalRepoNumber:
+        #userFollowers()
+        #ratecount += 1
+        #totalcount = 0
     try:
-        lookForward()
-    except:
-        waitPeriod()
-    totalRepoUser()
-    ratecount += 1
-    newusercount = 0
-    pagenumber = 1
-    if totalcount == totalRepoNumber:
-        userFollowers()
-        ratecount += 1
-        totalcount = 0
+        cur.execute('''CREATE TABLE IF NOT EXISTS GitHubData
+            (ID INTEGER, User TEXT, Repositories INTEGER, Followers INTEGER)''')
+        hyperDataGather()
         id += 1
-        print("Rate Count: ", ratecount, "\nRate Left: ", rateLeft)
+        #print("Rate Count: ", ratecount, "\nRate Left: ", rateLeft)
         cur.execute('''INSERT OR REPLACE INTO GitHubData(ID, User, Repositories, Followers)
-                    VALUES (?, ?, ?, ?)''', (id, usersName, totalRepoNumber, numOfFollowers))
+        VALUES (?, ?, ?, ?)''', (id, user, totalRepoNumber, numOfFollowers))
         conn.commit()
-    else:
-        while totalcount < totalRepoNumber:
-            lookForward()
-            userRepos()
-            ratecount += 1
-            print("Printing: ",totalcount, "out of: ", totalRepoNumber,"\nRateCount: ", ratecount,"\nRateLeft: ", rateLeft)     
+        print('Committed {}'.format(user))
+    except Exception as i:
+        print(i)
+        conn.close()
+        waitPeriod()
+    #else:
+        #while totalcount < totalRepoNumber:
+            #lookForward()
+            #userRepos()
+            #ratecount += 1
+            #print("Printing: ",totalcount, "out of: ", totalRepoNumber,"\nRateCount: ", ratecount,"\nRateLeft: ", rateLeft)     
 
 
 print(usernames)
